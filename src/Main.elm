@@ -1,10 +1,14 @@
-module Main exposing (Model, Msg, init, update, view)
+port module Main exposing (Model, Msg, init, update, view)
 
 import Browser
 import Html exposing (..)
-import Html.Attributes exposing (colspan)
+import Html.Attributes exposing (class, colspan, href, id, target)
+import Html.Events exposing (onClick)
 import Http
 import Json.Decode exposing (Decoder, field, string)
+import Process
+import Task
+import Time
 
 
 main : Program () Model Msg
@@ -17,31 +21,42 @@ main =
         }
 
 
+type alias Musica =
+    String
+
+
+type alias ListaMusicas =
+    List Musica
+
+
 type alias Model =
     { musicas : ListaMusicas
+    , musicaCopiada : Musica
     }
+
+
+port copyToClipboard : String -> Cmd msg
+
+
+port copiedToClipboard : (String -> msg) -> Sub msg
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Model <| List.repeat 6 <| String.fromChar '\u{00A0}', getPlayingMusic )
+    ( Model (List.repeat 6 "") "", getPlayingMusic )
 
 
 type Msg
-    = NoOp
+    = GetMusic Time.Posix
     | GotMusic (Result Http.Error String)
-
-
-type alias ListaMusicas =
-    List String
+    | Copy String
+    | Copied String
+    | Uncopy
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        NoOp ->
-            ( model, Cmd.none )
-
         GotMusic response ->
             case response of
                 Ok musica ->
@@ -50,30 +65,117 @@ update msg model =
                 Err _ ->
                     ( model, Cmd.none )
 
+        GetMusic _ ->
+            ( model, getPlayingMusic )
+
+        Copy musica ->
+            ( model, copyToClipboard musica )
+
+        Copied musica ->
+            ( { model | musicaCopiada = musica }, Process.sleep 3000 |> Task.perform (\_ -> Uncopy) )
+
+        Uncopy ->
+            ( { model | musicaCopiada = "" }, Cmd.none )
+
 
 view : Model -> Html Msg
 view model =
     table [ colspan 2 ]
         (th [ colspan 2 ]
             [ text "Músicas tocadas" ]
-            :: List.map musicaParaTabela model.musicas
+            :: List.map (musicaParaTabela model) model.musicas
         )
 
 
-musicaParaTabela : String -> Html Msg
-musicaParaTabela musica =
-    tr []
-        [ if String.length musica == 0 then
-            td [ colspan 2 ] [ text "" ]
+musicaParaTabela : Model -> Musica -> Html Msg
+musicaParaTabela model musica =
+    tr [ class <| obterEstiloMusica model.musicas musica ]
+        (if String.length musica == 0 then
+            mostrarTdNaoMusica <| String.fromChar '\u{00A0}'
 
-          else
-            td [] [ text musica ]
+         else if ePropaganda musica then
+            mostrarTdNaoMusica musica
+
+         else
+            [ mostrarTdMusica musica, mostrarTdBotao model.musicaCopiada musica ]
+        )
+
+
+mostrarTdNaoMusica : Musica -> List (Html Msg)
+mostrarTdNaoMusica texto =
+    [ td [ colspan 2 ] [ text texto ] ]
+
+
+mostrarTdMusica : Musica -> Html Msg
+mostrarTdMusica musica =
+    td []
+        [ a [ href <| linkMusica musica, target "_blank" ] [ text <| tratarMusica musica ]
         ]
 
 
-adicionarMusica : String -> List String -> List String
+mostrarTdBotao : Musica -> Musica -> Html Msg
+mostrarTdBotao musicaCopiada musica =
+    td [] [ button [ onClick <| Copy <| tratarMusica musica, class <| obterClasseBotao musicaCopiada musica ] [ text <| obterTextoBotao musicaCopiada musica ] ]
+
+
+obterClasseBotao : String -> String -> String
+obterClasseBotao musicaCopiada musica =
+    if eMusicaCopiada musicaCopiada musica then
+        "clicado"
+
+    else
+        ""
+
+
+obterTextoBotao : String -> String -> String
+obterTextoBotao musicaCopiada musica =
+    if eMusicaCopiada musicaCopiada musica then
+        "Copiado!"
+
+    else
+        "Copiar"
+
+
+eMusicaCopiada : Musica -> Musica -> Bool
+eMusicaCopiada copiada musica =
+    copiada == tratarMusica musica
+
+
+linkMusica : Musica -> String
+linkMusica musica =
+    musica
+        |> String.replace " -" ""
+        |> String.replace " " "+"
+        |> String.append "https://www.youtube.com/results?search_query="
+
+
+obterEstiloMusica : List Musica -> Musica -> String
+obterEstiloMusica lista musica =
+    if musicaAtual lista musica then
+        "tocando-agora"
+
+    else
+        ""
+
+
+tratarMusica : Musica -> Musica
+tratarMusica musica =
+    String.replace "(VHT)" "" musica
+
+
+ePropaganda : Musica -> Bool
+ePropaganda musica =
+    String.contains "SPOT" musica
+
+
+musicaAtual : List Musica -> Musica -> Bool
+musicaAtual lista musica =
+    List.take 1 lista == [ musica ]
+
+
+adicionarMusica : Musica -> List Musica -> List Musica
 adicionarMusica musica lista =
-    if List.member musica lista then
+    if musicaAtual lista musica then
         lista
 
     else
@@ -84,7 +186,10 @@ adicionarMusica musica lista =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.none
+    Sub.batch
+        [ Time.every (1000 * 30) GetMusic
+        , copiedToClipboard Copied
+        ]
 
 
 getPlayingMusic : Cmd Msg
@@ -95,6 +200,6 @@ getPlayingMusic =
         }
 
 
-musicDecoder : Decoder String
+musicDecoder : Decoder Musica
 musicDecoder =
     field "currentTrack" string

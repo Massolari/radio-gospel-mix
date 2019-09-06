@@ -42,13 +42,23 @@
             body {
                 background-color: #181a1c;
             }
+
+            .tocando-agora {
+                background-color: #ececec;
+                border-bottom: 2px solid black;
+                font-weight: bold;
+            }
+
+            .clicado {
+                background-color: lightgreen;
+            }
         </style>
     </head>
     <body>
         <div style="text-align: center">
             <h3>Rádio Gospel Mix</h3>
             <div id="tocando"></div>
-            <video controls autoplay="autoplay" name="media" preload="auto" height="60px" width="15%">
+            <video controls autoplay="autoplay" name="media" preload="auto" height="60px" width="25%">
                 <source src="http://74.63.237.84:8192/live" type="audio/aac">
             </video>
         </div>
@@ -56,6 +66,26 @@
             const app = Elm.Main.init({
                 node: document.getElementById('tocando')
             })
+
+            app.ports.copyToClipboard.subscribe((musica) => {
+                const el = document.createElement('textarea');
+                el.value = musica;
+                el.setAttribute('readonly', '');
+                el.style.position = 'absolute';
+                el.style.left = '-9999px';
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                // setTimeout(() => {
+                //     botao.style.backgroundColor = 'lightblue'
+                //     botao.innerHTML = 'Copiar'
+                // }, 3000)
+                // botao.innerHTML = 'Copiado!'
+                // botao.style.backgroundColor = 'lightgreen'
+                document.body.removeChild(el);
+                app.ports.copiedToClipboard.send(musica)
+            });
+
         </script>
     </body>
 </html>
