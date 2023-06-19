@@ -51,8 +51,7 @@ type alias Playlist =
 
 
 type PlayerStatus
-    = Initializing
-    | Playing
+    = Playing
     | Paused
 
 
@@ -67,7 +66,7 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     ( { playlist = []
       , copiedSong = Nothing
-      , player = Initializing
+      , player = Paused
       }
     , getSongPlaying []
     )
@@ -143,11 +142,25 @@ viewPlayer =
             , autoplay True
             , preload "auto"
             , src "http://74.63.237.84:8192/live"
+            , on "load" (D.map GotPlayerStatus decodePlayerStatus)
             , on "play" (D.succeed <| GotPlayerStatus Playing)
             , on "pause" (D.succeed <| GotPlayerStatus Paused)
             ]
             []
         ]
+
+
+decodePlayerStatus : D.Decoder PlayerStatus
+decodePlayerStatus =
+    D.at [ "target", "paused" ] D.bool
+        |> D.map
+            (\paused ->
+                if paused then
+                    Paused
+
+                else
+                    Playing
+            )
 
 
 viewPlaylist : Model -> Html Msg
@@ -186,10 +199,6 @@ viewPlayerButton status =
                 [ content ]
     in
     case status of
-        Initializing ->
-            span [ class "spinner" ]
-                [ Icon.spinner ]
-
         Playing ->
             playPauseButton Icon.pause
 
