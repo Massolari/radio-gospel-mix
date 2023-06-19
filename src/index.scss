@@ -1,5 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap");
 
+* {
+  padding: 0;
+  margin: 0;
+}
+
 html {
   font-family: "Montserrat", sans-serif;
   background-color: black;
@@ -24,6 +29,7 @@ h3 {
   text-align: center;
   color: white;
   font-size: 2rem;
+  padding: 1rem;
 }
 
 .playlist {
@@ -43,13 +49,15 @@ button {
 .song {
   --btn-hover-color: #aeaeae;
   --padding: 1rem;
+  --width-md: 400px;
+  --width-sm: 70vw;
   display: flex;
   background-color: gray;
   color: white;
   opacity: 0.5;
   list-style-type: none;
   padding: var(--padding);
-  width: 400px;
+  width: min(var(--width-sm), var(--width-md));
   justify-content: space-between;
   align-items: center;
   transition: all 1s;
@@ -58,6 +66,8 @@ button {
   &:last-child {
     --btn-hover-color: #eaeaea;
     --pading: 1.125rem;
+    --width-md: 500px;
+    --width-sm: 80vw;
     transform-origin: top;
     height: 0px;
     animation: showSong 1s;
@@ -65,7 +75,6 @@ button {
     background-color: white;
     color: black;
     opacity: 0.9;
-    width: 500px;
   }
 
   .player-button {
