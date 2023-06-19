@@ -1,0 +1,190 @@
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap");
+
+html {
+  font-family: "Montserrat", sans-serif;
+  background-color: black;
+}
+
+main,
+.background {
+  height: 100%;
+}
+
+.background {
+  background: url("https://public-rf-upload.minhawebradio.net/1667/background/484e1249f0229a277e0bf0af6f4066b8.jpg");
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  opacity: 0.2;
+  z-index: -1;
+}
+
+h3 {
+  text-align: center;
+  color: white;
+  font-size: 2rem;
+}
+
+.playlist {
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.5rem;
+  width: fit-content;
+  align-items: center;
+}
+
+button {
+  border: none;
+  padding: 0.5rem;
+}
+
+.song {
+  --btn-hover-color: #aeaeae;
+  --padding: 1rem;
+  display: flex;
+  background-color: gray;
+  color: white;
+  opacity: 0.5;
+  list-style-type: none;
+  padding: var(--padding);
+  width: 400px;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 1s;
+  overflow: hidden;
+
+  &:last-child {
+    --btn-hover-color: #eaeaea;
+    --pading: 1.125rem;
+    transform-origin: top;
+    height: 0px;
+    animation: showSong 1s;
+    animation-fill-mode: forwards;
+    background-color: white;
+    color: black;
+    opacity: 0.9;
+    width: 500px;
+  }
+
+  .player-button {
+    border: none;
+    border-radius: 8px;
+    font-size: 1.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    background: none;
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--btn-hover-color);
+    }
+  }
+
+  .song-name {
+    text-align: center;
+
+    .song-title {
+      font-size: 1.125rem;
+      font-weight: bold;
+    }
+
+    .song-artist {
+      font-size: 0.75rem;
+      color: #aeaeae;
+    }
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+
+    .copy-button,
+    .youtube-button {
+      font-size: 1rem;
+      border-radius: 100%;
+      background: none;
+      cursor: pointer;
+
+      &:hover {
+        background-color: var(--btn-hover-color);
+      }
+    }
+
+    .copied {
+      position: relative;
+
+      &:before {
+        content: "Copiado";
+        position: absolute;
+        background-color: #eaeaea;
+        padding: 0.5rem;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        color: black;
+        opacity: 0;
+        transition: opacity 0.5s;
+        animation: fadeInOut 3s;
+        animation-fill-mode: forwards;
+        top: -30;
+        left: -15;
+      }
+    }
+
+    .youtube-button {
+      display: inline-flex;
+      padding: 0.5rem;
+    }
+  }
+}
+
+audio {
+  display: none;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1.5rem;
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes showSong {
+  0% {
+    height: 0px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  100% {
+    height: 40px;
+    padding-top: var(--padding);
+    padding-bottom: var(--padding);
+    overflow: visible;
+  }
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
