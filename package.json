@@ -1,13 +1,13 @@
 {
   "name": "radio-gospel-mix",
   "version": "1.0.0",
-  "main": "index.js",
+  "source": "src/index.html",
   "repository": "git@github.com:Massolari/radio-gospel-mix.git",
   "author": "Douglas M. <douglasmassolari@hotmail.com>",
   "license": "MIT",
   "scripts": {
-    "dev": "parcel src/index.html",
-    "build": "parcel build src/index.html"
+    "dev": "parcel",
+    "build": "parcel build"
   },
   "devDependencies": {
     "@parcel/transformer-elm": "2.9.2",
