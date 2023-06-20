@@ -141,8 +141,8 @@ viewPlayer =
             [ controls True
             , autoplay True
             , preload "auto"
-            , src "http://74.63.237.84:8192/live"
-            , on "load" (D.map GotPlayerStatus decodePlayerStatus)
+            , src "https://servidor33-3.brlogic.com:8192/live?source=website"
+            , on "loadeddata" (D.map GotPlayerStatus decodePlayerStatus)
             , on "play" (D.succeed <| GotPlayerStatus Playing)
             , on "pause" (D.succeed <| GotPlayerStatus Paused)
             ]
