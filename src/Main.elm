@@ -366,10 +366,14 @@ decodeSong playlist =
                         String.toUpper track
 
                     isAd =
-                        String.contains "SPOT" upperTrack
-                            || String.contains "CAMPANHA OFICIAL" upperTrack
-                            || String.contains "ESTAÇÃO LITERÁRIA" upperTrack
-                            || String.startsWith "VHT - " upperTrack
+                        String.startsWith "VHT - " upperTrack
+                            || List.any
+                                (\adText -> String.contains adText upperTrack)
+                                [ "SPOT"
+                                , "CAMPANHA OFICIAL"
+                                , "ALIMENTAÇÃO SAUDÁVEL"
+                                , "ESTAÇÃO LITERÁRIA"
+                                ]
                 in
                 { name = songName
                 , isAd = isAd
