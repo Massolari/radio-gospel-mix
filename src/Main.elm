@@ -367,6 +367,8 @@ decodeSong playlist =
 
                     isAd =
                         String.contains "SPOT" upperTrack
+                            || String.contains "CAMPANHA OFICIAL" upperTrack
+                            || String.contains "ESTAÇÃO LITERÁRIA" upperTrack
                             || String.startsWith "VHT - " upperTrack
                 in
                 { name = songName
