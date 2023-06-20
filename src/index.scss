@@ -5,6 +5,10 @@
   margin: 0;
 }
 
+:root {
+  --btn-hover-color: #aeaeae;
+}
+
 html {
   font-family: "Montserrat", sans-serif;
   background-color: black;
@@ -44,10 +48,15 @@ h3 {
 button {
   border: none;
   padding: 0.5rem;
+  transition: background-color 0.2s;
+  background: none;
+
+  &:hover {
+    background-color: var(--btn-hover-color);
+  }
 }
 
 .song {
-  --btn-hover-color: #aeaeae;
   --padding: 1rem;
   --width-md: 400px;
   --width-sm: 70vw;
@@ -61,7 +70,6 @@ button {
   justify-content: space-between;
   align-items: center;
   transition: all 1s;
-  overflow: hidden;
 
   &:last-child {
     --btn-hover-color: #eaeaea;
@@ -83,12 +91,7 @@ button {
     font-size: 1.5rem;
     width: 2.5rem;
     height: 2.5rem;
-    background: none;
     cursor: pointer;
-
-    &:hover {
-      background-color: var(--btn-hover-color);
-    }
   }
 
   .song-name {
@@ -116,6 +119,7 @@ button {
       border-radius: 100%;
       background: none;
       cursor: pointer;
+      transition: background-color 0.5s;
 
       &:hover {
         background-color: var(--btn-hover-color);
@@ -182,6 +186,7 @@ audio {
     height: 0px;
     padding-top: 0;
     padding-bottom: 0;
+    overflow: hidden;
   }
   100% {
     height: 40px;
