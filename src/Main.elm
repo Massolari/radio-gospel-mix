@@ -367,6 +367,7 @@ decodeSong playlist =
 
                     isAd =
                         String.startsWith "VHT - " upperTrack
+                            || String.startsWith "JINGLE - " upperTrack
                             || List.any
                                 (\adText -> String.contains adText upperTrack)
                                 [ "SPOT"
