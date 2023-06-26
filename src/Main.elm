@@ -308,6 +308,34 @@ addToPlaylist song playlist =
         ++ [ song ]
 
 
+stringToSongName : String -> SongName
+stringToSongName name =
+    let
+        splittedName =
+            name
+                |> String.split " - "
+                |> List.filterMap
+                    (\part ->
+                        case String.toInt part of
+                            Just _ ->
+                                Nothing
+
+                            Nothing ->
+                                if part == "Ao Vivo" then
+                                    Nothing
+
+                                else
+                                    Just part
+                    )
+    in
+    case splittedName of
+        [ artist, title ] ->
+            Formatted { artist = artist, title = title }
+
+        _ ->
+            Unformatted name
+
+
 
 -- Subscriptions
 
@@ -339,31 +367,15 @@ getSongPlaying playlist =
 decodeSong : Playlist -> D.Decoder (Maybe Song)
 decodeSong playlist =
     D.field "currentTrack" D.string
+        |> D.map (String.replace "(VHT)" "" >> String.trim)
+        |> D.map stringToSongName
         |> D.map
-            (\track ->
+            (\songName ->
                 let
-                    formattedTrack =
-                        track
-                            |> String.replace "(VHT)" ""
-                            |> String.trim
-
-                    songName =
-                        case String.split " - " formattedTrack of
-                            [ artist, title ] ->
-                                Formatted { artist = artist, title = title }
-
-                            [ maybeNumber, artist, title ] ->
-                                if (String.toInt maybeNumber |> Maybe.withDefault 0) > 0 then
-                                    Formatted { artist = artist, title = title }
-
-                                else
-                                    Unformatted track
-
-                            _ ->
-                                Unformatted track
-
                     upperTrack =
-                        String.toUpper track
+                        songName
+                            |> getSongName
+                            |> String.toUpper
 
                     isAd =
                         String.startsWith "VHT - " upperTrack
