@@ -292,7 +292,6 @@ isCurrentSong playlist song =
             current.name == song.name
     in
     playlist
-        |> List.reverse
         |> List.head
         |> Maybe.map (\current -> areBothAds current || haveBothSameName current)
         |> Maybe.withDefault False
@@ -300,12 +299,9 @@ isCurrentSong playlist song =
 
 addToPlaylist : Song -> List Song -> List Song
 addToPlaylist song playlist =
-    (playlist
-        |> List.reverse
+    playlist
         |> List.take 5
-        |> List.reverse
-    )
-        ++ [ song ]
+        |> List.append [ song ]
 
 
 stringToSongName : String -> SongName

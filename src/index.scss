@@ -39,9 +39,10 @@ h3 {
 .playlist {
   margin: 0 auto;
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   gap: 0.5rem;
   width: fit-content;
+  height: 100%;
   align-items: center;
 }
 
@@ -71,7 +72,7 @@ button {
   align-items: center;
   transition: all 1s;
 
-  &:last-child {
+  &:first-child {
     --btn-hover-color: #eaeaea;
     --pading: 1.125rem;
     --width-md: 500px;
