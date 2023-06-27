@@ -21,6 +21,12 @@ html {
   z-index: -1;
 }
 
+@layer utilities {
+  .transition-opacity-150 {
+    transition: opacity 150ms ease-in-out;
+  }
+}
+
 @keyframes fadeInOut {
   0% {
     opacity: 0;

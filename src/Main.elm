@@ -193,8 +193,11 @@ styledButton =
 viewKeyedSong : Model -> Song -> ( String, Html Msg )
 viewKeyedSong model song =
     let
+        isCurrent =
+            isCurrentSong model.playlist song
+
         currentSongClasses =
-            if isCurrentSong model.playlist song then
+            if isCurrent then
                 [ class "text-black bg-white px-5 opacity-90"
                 , class "animate-[showSong_1s] fill-mode-forwards "
                 , class "md:w-[40vw] w-[70vw]"
@@ -208,7 +211,7 @@ viewKeyedSong model song =
     ( getSongName song.name
     , li
         ([ class "list-none"
-         , class "transition-all duration-1000 origin-top"
+         , class "transition-all duration-1000 origin-top transition-opacity-150 hover:opacity-100"
          , class "flex justify-between items-center"
          ]
             ++ currentSongClasses
@@ -218,10 +221,10 @@ viewKeyedSong model song =
 
           else
             text ""
-        , viewSongName song
+        , viewSongName song isCurrent
         , div [ class "flex gap-2" ]
-            [ viewYoutubeButton song
-            , viewCopyButton model.copiedSong song
+            [ viewYoutubeButton song isCurrent
+            , viewCopyButton model.copiedSong song isCurrent
             ]
         ]
     )
@@ -246,8 +249,8 @@ viewPlayerButton status =
             playPauseButton Icon.play
 
 
-viewSongName : Song -> Html Msg
-viewSongName song =
+viewSongName : Song -> Bool -> Html Msg
+viewSongName song isCurrent =
     let
         songName =
             if song.isAd then
@@ -258,20 +261,35 @@ viewSongName song =
 
         songNameClasses =
             class "text-center w-full"
+
+        artistClass =
+            if isCurrent then
+                class "text-gray-600"
+
+            else
+                class "text-gray-400"
     in
     case songName of
         Formatted formattedSongName ->
             div [ songNameClasses ]
                 [ div [ class "text-lg font-bold" ] [ text formattedSongName.title ]
-                , div [ class "text-xs text-gray-300" ] [ text formattedSongName.artist ]
+                , div [ class "text-xs", artistClass ] [ text formattedSongName.artist ]
                 ]
 
         Unformatted name ->
             div [ songNameClasses ] [ text name ]
 
 
-viewCopyButton : Maybe String -> Song -> Html Msg
-viewCopyButton copiedSong song =
+viewCopyButton : Maybe String -> Song -> Bool -> Html Msg
+viewCopyButton copiedSong song isCurrent =
+    let
+        bgHoverClass =
+            if isCurrent then
+                class "hover:bg-gray-100"
+
+            else
+                class "hover:bg-gray-700 [&>svg]:fill-white"
+    in
     div [ class "relative" ]
         [ if isCopiedSong copiedSong song then
             span
@@ -287,18 +305,28 @@ viewCopyButton copiedSong song =
         , styledButton
             [ onClick <| Copy song
             , class "rounded-full"
+            , bgHoverClass
             ]
             [ Icon.copy
             ]
         ]
 
 
-viewYoutubeButton : Song -> Html Msg
-viewYoutubeButton song =
+viewYoutubeButton : Song -> Bool -> Html Msg
+viewYoutubeButton song isCurrent =
+    let
+        isCurrentSongClasses =
+            if isCurrent then
+                class "hover:bg-gray-100"
+
+            else
+                class "hover:bg-gray-700 [&>svg]:fill-white"
+    in
     a
         [ href <| songLink song
         , target "_blank"
-        , class "rounded-full p-2 transition-all hover:bg-gray-100"
+        , class "rounded-full p-2 transition-all"
+        , isCurrentSongClasses
         ]
         [ Icon.youtube ]
 
