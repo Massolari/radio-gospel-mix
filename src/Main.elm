@@ -4,6 +4,7 @@ import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick)
+import Html.Keyed as Keyed
 import Http
 import Icon
 import Json.Decode as D
@@ -127,8 +128,11 @@ update msg model =
 view : Model -> Html Msg
 view model =
     main_ []
-        [ div [ class "background" ] []
-        , h3 [] [ text "Rádio Gospel Mix" ]
+        [ div
+            [ class "background absolute top-0 left-0 w-full h-full opacity-20" ]
+            []
+        , h3 [ class "text-center text-white text-3xl p-4" ]
+            [ text "Rádio Gospel Mix" ]
         , viewPlayer
         , viewPlaylist model
         ]
@@ -139,6 +143,7 @@ viewPlayer =
     div []
         [ audio
             [ controls True
+            , class "hidden"
             , autoplay True
             , preload "auto"
             , src "https://servidor33-3.brlogic.com:8192/live?source=website"
@@ -165,35 +170,70 @@ decodePlayerStatus =
 
 viewPlaylist : Model -> Html Msg
 viewPlaylist model =
-    ul [ class "playlist" ]
+    Keyed.node "ul"
+        [ class "mx-auto my-0"
+        , class "flex flex-col gap-2 items-center"
+        , class "w-fit h-full"
+        ]
         (List.map
-            (viewSong model)
+            (viewKeyedSong model)
             model.playlist
         )
 
 
-viewSong : Model -> Song -> Html Msg
-viewSong model song =
-    li [ class "song" ]
+styledButton : List (Attribute msg) -> List (Html msg) -> Html msg
+styledButton =
+    button
+        << List.append
+            [ class "bg-none hover:bg-gray-100"
+            , class "p-2 border-none transition-all pointer"
+            ]
+
+
+viewKeyedSong : Model -> Song -> ( String, Html Msg )
+viewKeyedSong model song =
+    let
+        currentSongClasses =
+            if isCurrentSong model.playlist song then
+                [ class "text-black bg-white px-5 opacity-90"
+                , class "animate-[showSong_1s] fill-mode-forwards "
+                , class "md:w-[40vw] w-[70vw]"
+                ]
+
+            else
+                [ class "text-white bg-gray-600 opacity-70 p-4"
+                , class "md:w-[30vw] w-[60vw]"
+                ]
+    in
+    ( getSongName song.name
+    , li
+        ([ class "list-none"
+         , class "transition-all duration-1000 origin-top"
+         , class "flex justify-between items-center"
+         ]
+            ++ currentSongClasses
+        )
         [ if isCurrentSong model.playlist song then
             viewPlayerButton model.player
 
           else
             text ""
         , viewSongName song
-        , div [ class "actions" ]
+        , div [ class "flex gap-2" ]
             [ viewYoutubeButton song
             , viewCopyButton model.copiedSong song
             ]
         ]
+    )
 
 
 viewPlayerButton : PlayerStatus -> Html Msg
 viewPlayerButton status =
     let
         playPauseButton content =
-            button
-                [ class "player-button"
+            styledButton
+                [ class "rounded-lg text-xl w-10 h-10"
+                , class "flex items-center justify-center"
                 , onClick PlayPause
                 ]
                 [ content ]
@@ -215,31 +255,42 @@ viewSongName song =
 
             else
                 song.name
+
+        songNameClasses =
+            class "text-center w-full"
     in
     case songName of
         Formatted formattedSongName ->
-            div [ class "song-name" ]
-                [ div [ class "song-title" ] [ text formattedSongName.title ]
-                , div [ class "song-artist" ] [ text formattedSongName.artist ]
+            div [ songNameClasses ]
+                [ div [ class "text-lg font-bold" ] [ text formattedSongName.title ]
+                , div [ class "text-xs text-gray-300" ] [ text formattedSongName.artist ]
                 ]
 
         Unformatted name ->
-            div [ class "song-name" ] [ text name ]
+            div [ songNameClasses ] [ text name ]
 
 
 viewCopyButton : Maybe String -> Song -> Html Msg
 viewCopyButton copiedSong song =
-    button
-        [ onClick <| Copy song
-        , class "copy-button"
-        , class <|
-            if isCopiedSong copiedSong song then
-                "copied"
+    div [ class "relative" ]
+        [ if isCopiedSong copiedSong song then
+            span
+                [ class "text-xs text-black rounded-lg p-2 transition-opacity"
+                , class "absolute top-[-2rem] left-[-1rem]"
+                , class "bg-gray-100"
+                , class "animate-[fadeInOut_3s] fill-mode-forwards"
+                ]
+                [ text "Copiado" ]
 
-            else
-                ""
+          else
+            text ""
+        , styledButton
+            [ onClick <| Copy song
+            , class "rounded-full"
+            ]
+            [ Icon.copy
+            ]
         ]
-        [ Icon.copy ]
 
 
 viewYoutubeButton : Song -> Html Msg
@@ -247,7 +298,7 @@ viewYoutubeButton song =
     a
         [ href <| songLink song
         , target "_blank"
-        , class "youtube-button"
+        , class "rounded-full p-2 transition-all hover:bg-gray-100"
         ]
         [ Icon.youtube ]
 
