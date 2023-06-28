@@ -460,6 +460,7 @@ decodeSong playlist =
                                 [ "SPOT"
                                 , "CAMPANHA OFICIAL"
                                 , "ALIMENTAÇÃO SAUDÁVEL"
+                                , "MOMENTO FASHION"
                                 , "ESTAÇÃO LITERÁRIA"
                                 ]
                 in
