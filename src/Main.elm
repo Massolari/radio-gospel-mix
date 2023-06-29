@@ -462,6 +462,7 @@ decodeSong playlist =
                                 , "ALIMENTAÇÃO SAUDÁVEL"
                                 , "MOMENTO FASHION"
                                 , "ESTAÇÃO LITERÁRIA"
+                                , "GOSPELMIX"
                                 ]
                 in
                 { name = songName
