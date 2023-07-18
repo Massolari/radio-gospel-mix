@@ -9,6 +9,9 @@ import Http
 import Icon
 import Json.Decode as D
 import Process
+import Radio exposing (Radio, Station)
+import Song exposing (Song)
+import SongName
 import Task
 import Time
 
@@ -30,34 +33,13 @@ port copiedToClipboard : (String -> msg) -> Sub msg
 -- Model
 
 
-type SongName
-    = Formatted FormattedSongName
-    | Unformatted String
-
-
-type alias FormattedSongName =
-    { artist : String
-    , title : String
-    }
-
-
-type alias Song =
-    { name : SongName
-    , isAd : Bool
-    }
-
-
-type alias Playlist =
-    List Song
-
-
 type PlayerStatus
     = Playing
     | Paused
 
 
 type alias Model =
-    { playlist : Playlist
+    { radio : Radio
     , copiedSong : Maybe String
     , player : PlayerStatus
     }
@@ -65,11 +47,15 @@ type alias Model =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { playlist = []
+    let
+        radio =
+            Radio.init
+    in
+    ( { radio = radio
       , copiedSong = Nothing
       , player = Paused
       }
-    , getSongPlaying []
+    , apiGetSongPlaying radio
     )
 
 
@@ -85,6 +71,7 @@ type Msg
     | Copy Song
     | Copied String
     | Uncopy
+    | ChangeRadio Station
 
 
 
@@ -97,28 +84,45 @@ update msg model =
         GotSong response ->
             case response of
                 Ok (Just song) ->
-                    ( { model | playlist = addToPlaylist song model.playlist }, Cmd.none )
+                    ( { model | radio = Radio.addToPlaylist model.radio song }
+                    , Cmd.none
+                    )
 
                 _ ->
                     ( model, Cmd.none )
 
         GetSongPlaying _ ->
-            ( model, getSongPlaying model.playlist )
+            ( model
+            , apiGetSongPlaying model.radio
+            )
 
         GotPlayerStatus status ->
-            ( { model | player = status }, Cmd.none )
+            ( { model | player = status }
+            , Cmd.none
+            )
 
         PlayPause ->
             ( model, playPause () )
 
         Copy song ->
-            ( model, copyToClipboard <| getSongName song.name )
+            ( model, copyToClipboard <| SongName.toString song.name )
 
         Copied song ->
-            ( { model | copiedSong = Just song }, Process.sleep 3000 |> Task.perform (\_ -> Uncopy) )
+            ( { model | copiedSong = Just song }
+            , Process.sleep 3000 |> Task.perform (\_ -> Uncopy)
+            )
 
         Uncopy ->
-            ( { model | copiedSong = Nothing }, Cmd.none )
+            ( { model | copiedSong = Nothing }
+            , Cmd.none
+            )
+
+        ChangeRadio station ->
+            let
+                newRadio =
+                    Radio.changeRadio station
+            in
+            ( { model | radio = newRadio }, apiGetSongPlaying newRadio )
 
 
 
@@ -128,25 +132,76 @@ update msg model =
 view : Model -> Html Msg
 view model =
     main_ []
-        [ div
-            [ class "background absolute top-0 left-0 w-full h-full opacity-20" ]
-            []
-        , h3 [ class "text-center text-white text-3xl p-4" ]
-            [ text "Rádio Gospel Mix" ]
-        , viewPlayer
+        [ viewBackground
+        , viewNavigation model.radio
+        , viewPlayer model.radio
         , viewPlaylist model
         ]
 
 
-viewPlayer : Html Msg
-viewPlayer =
+viewBackground : Html Msg
+viewBackground =
+    div
+        [ class "background absolute top-0 left-0 w-full h-full opacity-20" ]
+        []
+
+
+viewNavigation : Radio -> Html Msg
+viewNavigation radio =
+    let
+        disabledIconClass =
+            class "opacity-10"
+
+        ( carretLeftAttrs, carretRightAttrs ) =
+            case Radio.station radio of
+                Radio.GospelMix ->
+                    ( [ disabledIconClass, disabled True ]
+                    , [ onClick <| ChangeRadio Radio.ChristianRock ]
+                    )
+
+                Radio.ChristianRock ->
+                    ( [ onClick <| ChangeRadio Radio.GospelMix ]
+                    , [ disabledIconClass, disabled True ]
+                    )
+
+        titleClass station =
+            if Radio.current radio station then
+                class "opacity-100"
+
+            else
+                class "opacity-10"
+
+        viewRadioName station =
+            span
+                [ titleClass station
+                , class "transition-all duration-500"
+                ]
+                [ text <| Radio.stationName station ]
+
+        viewCarret attrs icon =
+            button
+                (attrs ++ [ class "[&>svg]:fill-white" ])
+                [ icon ]
+    in
+    nav
+        [ class "justify-center items-center flex gap-4 p-4 text-white text-3xl "
+        ]
+        [ viewCarret carretLeftAttrs Icon.carretLeft
+        , viewRadioName Radio.GospelMix
+        , viewRadioName Radio.ChristianRock
+        , viewCarret carretRightAttrs Icon.carretRight
+        ]
+
+
+viewPlayer : Radio -> Html Msg
+viewPlayer radio =
     div []
         [ audio
             [ controls True
             , class "hidden"
             , autoplay True
             , preload "auto"
-            , src "https://servidor33-3.brlogic.com:8192/live?source=website"
+            , src <| Radio.urlStream radio
             , on "loadeddata" (D.map GotPlayerStatus decodePlayerStatus)
             , on "play" (D.succeed <| GotPlayerStatus Playing)
             , on "pause" (D.succeed <| GotPlayerStatus Paused)
@@ -170,6 +225,10 @@ decodePlayerStatus =
 
 viewPlaylist : Model -> Html Msg
 viewPlaylist model =
+    let
+        playlist =
+            Radio.playlist model.radio
+    in
     Keyed.node "ul"
         [ class "mx-auto my-0"
         , class "flex flex-col gap-2 items-center"
@@ -177,7 +236,7 @@ viewPlaylist model =
         ]
         (List.map
             (viewKeyedSong model)
-            model.playlist
+            playlist
         )
 
 
@@ -193,8 +252,11 @@ styledButton =
 viewKeyedSong : Model -> Song -> ( String, Html Msg )
 viewKeyedSong model song =
     let
+        playlist =
+            Radio.playlist model.radio
+
         isCurrent =
-            isCurrentSong model.playlist song
+            Song.isCurrent playlist song
 
         currentSongClasses =
             if isCurrent then
@@ -208,7 +270,7 @@ viewKeyedSong model song =
                 , class "md:w-[30vw] w-[60vw]"
                 ]
     in
-    ( getSongName song.name
+    ( SongName.toString song.name
     , li
         ([ class "list-none"
          , class "transition-all duration-1000 origin-top transition-opacity-150 hover:opacity-100"
@@ -216,7 +278,7 @@ viewKeyedSong model song =
          ]
             ++ currentSongClasses
         )
-        [ if isCurrentSong model.playlist song then
+        [ if Song.isCurrent playlist song then
             viewPlayerButton model.player
 
           else
@@ -254,7 +316,7 @@ viewSongName song isCurrent =
     let
         songName =
             if song.isAd then
-                Unformatted "Intervalo"
+                SongName.newUnformatted "Intervalo"
 
             else
                 song.name
@@ -269,15 +331,17 @@ viewSongName song isCurrent =
             else
                 class "text-gray-400"
     in
-    case songName of
-        Formatted formattedSongName ->
-            div [ songNameClasses ]
-                [ div [ class "text-lg font-bold" ] [ text formattedSongName.title ]
-                , div [ class "text-xs", artistClass ] [ text formattedSongName.artist ]
-                ]
-
-        Unformatted name ->
-            div [ songNameClasses ] [ text name ]
+    SongName.match songName
+        { formatted =
+            \formattedSongName ->
+                div [ songNameClasses ]
+                    [ div [ class "text-lg font-bold" ] [ text formattedSongName.title ]
+                    , div [ class "text-xs", artistClass ] [ text formattedSongName.artist ]
+                    ]
+        , unformatted =
+            \name ->
+                div [ songNameClasses ] [ text name ]
+        }
 
 
 viewCopyButton : Maybe String -> Song -> Bool -> Html Msg
@@ -323,7 +387,7 @@ viewYoutubeButton song isCurrent =
                 class "hover:bg-gray-700 [&>svg]:fill-white"
     in
     a
-        [ href <| songLink song
+        [ href <| SongName.toYoutubeLink song.name
         , target "_blank"
         , class "rounded-full p-2 transition-all"
         , isCurrentSongClasses
@@ -338,77 +402,8 @@ viewYoutubeButton song isCurrent =
 isCopiedSong : Maybe String -> Song -> Bool
 isCopiedSong copiedSong song =
     copiedSong
-        |> Maybe.map ((==) (getSongName song.name))
+        |> Maybe.map ((==) (SongName.toString song.name))
         |> Maybe.withDefault False
-
-
-songLink : Song -> String
-songLink song =
-    song.name
-        |> getSongName
-        |> String.replace " -" ""
-        |> String.replace " " "+"
-        |> String.append "https://www.youtube.com/results?search_query="
-
-
-getSongName : SongName -> String
-getSongName songName =
-    case songName of
-        Formatted data ->
-            data.artist ++ " - " ++ data.title
-
-        Unformatted name ->
-            name
-
-
-isCurrentSong : Playlist -> Song -> Bool
-isCurrentSong playlist song =
-    let
-        areBothAds current =
-            current.isAd == True && current.isAd == song.isAd
-
-        haveBothSameName current =
-            current.name == song.name
-    in
-    playlist
-        |> List.head
-        |> Maybe.map (\current -> areBothAds current || haveBothSameName current)
-        |> Maybe.withDefault False
-
-
-addToPlaylist : Song -> List Song -> List Song
-addToPlaylist song playlist =
-    playlist
-        |> List.take 5
-        |> List.append [ song ]
-
-
-stringToSongName : String -> SongName
-stringToSongName name =
-    let
-        splittedName =
-            name
-                |> String.split " - "
-                |> List.filterMap
-                    (\part ->
-                        case String.toInt part of
-                            Just _ ->
-                                Nothing
-
-                            Nothing ->
-                                if part == "Ao Vivo" then
-                                    Nothing
-
-                                else
-                                    Just part
-                    )
-    in
-    case splittedName of
-        [ artist, title ] ->
-            Formatted { artist = artist, title = title }
-
-        _ ->
-            Unformatted name
 
 
 
@@ -427,57 +422,12 @@ subscriptions _ =
 -- Http
 
 
-getSongPlaying : Playlist -> Cmd Msg
-getSongPlaying playlist =
-    Http.get
-        { url = "https://d36nr0u3xmc4mm.cloudfront.net/index.php/api/streaming/status/8192/2e1cbe43529055ddda74868d2db9ae98/SV4BR"
-        , expect = Http.expectJson GotSong (decodeSong playlist)
+apiGetSongPlaying : Radio -> Cmd Msg
+apiGetSongPlaying radio =
+    Radio.apiGetSongPlaying
+        { radio = radio
+        , onMsg = GotSong
         }
-
-
-
--- Decoders
-
-
-decodeSong : Playlist -> D.Decoder (Maybe Song)
-decodeSong playlist =
-    D.field "currentTrack" D.string
-        |> D.map (String.replace "(VHT)" "" >> String.trim)
-        |> D.map stringToSongName
-        |> D.map
-            (\songName ->
-                let
-                    upperTrack =
-                        songName
-                            |> getSongName
-                            |> String.toUpper
-
-                    isAd =
-                        String.startsWith "VHT - " upperTrack
-                            || String.startsWith "JINGLE - " upperTrack
-                            || List.any
-                                (\adText -> String.contains adText upperTrack)
-                                [ "SPOT"
-                                , "CAMPANHA OFICIAL"
-                                , "ALIMENTAÇÃO SAUDÁVEL"
-                                , "MOMENTO FASHION"
-                                , "ESTAÇÃO LITERÁRIA"
-                                , "GOSPELMIX"
-                                , "CURIOSIDADE MÁXIMA"
-                                ]
-                in
-                { name = songName
-                , isAd = isAd
-                }
-            )
-        |> D.map
-            (\song ->
-                if isCurrentSong playlist song then
-                    Nothing
-
-                else
-                    Just song
-            )
 
 
 
