@@ -30,12 +30,19 @@ getSongPlaying config =
 
 decodeSong : Playlist -> D.Decoder (Maybe Song)
 decodeSong playlist =
-    D.map2 Song
-        (D.map2 (\artist title -> SongName.newFormatted { artist = artist, title = title })
-            (D.field "title" D.string)
-            (D.field "artist" D.string)
-        )
-        (D.succeed False)
+    D.map2 (\artist title -> SongName.newFormatted { artist = artist, title = title })
+        (D.field "title" D.string)
+        (D.field "artist" D.string)
+        |> D.map
+            (\songName ->
+                let
+                    songNameString =
+                        SongName.toString songName
+                in
+                { name = songName
+                , isAd = String.startsWith "EvangelismRockMinutes" songNameString
+                }
+            )
         |> D.map
             (\song ->
                 if Song.isCurrent playlist song then
