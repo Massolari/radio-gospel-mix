@@ -40,7 +40,7 @@ decodeSong playlist =
                         SongName.toString songName
                 in
                 { name = songName
-                , isAd = String.startsWith "EvangelismRockMinutes" songNameString
+                , isAd = String.contains "EvangelismRockMinutes" songNameString
                 }
             )
         |> D.map
