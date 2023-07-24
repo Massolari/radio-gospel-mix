@@ -35,7 +35,7 @@ getSongPlaying config =
 
 decodeSong : Playlist -> D.Decoder (Maybe Song)
 decodeSong playlist =
-    D.map2 (\artist title -> SongName.newFormatted { artist = artist, title = title })
+    D.map2 (\title artist -> SongName.newFormatted { artist = artist, title = title })
         (D.field "title" D.string)
         (D.field "artist" D.string)
         |> D.map
