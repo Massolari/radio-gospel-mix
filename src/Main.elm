@@ -23,6 +23,9 @@ import Time
 port copyToClipboard : String -> Cmd msg
 
 
+port changeUrlQuery : String -> Cmd msg
+
+
 port playPause : () -> Cmd msg
 
 
@@ -31,6 +34,10 @@ port copiedToClipboard : (String -> msg) -> Sub msg
 
 
 -- Model
+
+
+type alias Flags =
+    D.Value
 
 
 type PlayerStatus
@@ -45,17 +52,25 @@ type alias Model =
     }
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+init : Flags -> ( Model, Cmd Msg )
+init flags =
     let
+        radioQuery =
+            flags
+                |> D.decodeValue (D.field "radio" <| D.maybe D.string)
+                |> Result.withDefault Nothing
+
         radio =
-            Radio.init
+            Radio.init radioQuery
     in
     ( { radio = radio
       , copiedSong = Nothing
       , player = Paused
       }
-    , apiGetSongPlaying radio
+    , Cmd.batch
+        [ apiGetSongPlaying radio
+        , changeUrlQuery <| Radio.urlQueryName radio
+        ]
     )
 
 
@@ -122,7 +137,12 @@ update msg model =
                 newRadio =
                     Radio.changeRadio station
             in
-            ( { model | radio = newRadio }, apiGetSongPlaying newRadio )
+            ( { model | radio = newRadio }
+            , Cmd.batch
+                [ apiGetSongPlaying newRadio
+                , changeUrlQuery <| Radio.urlQueryName newRadio
+                ]
+            )
 
 
 
@@ -434,7 +454,7 @@ apiGetSongPlaying radio =
 -- Main
 
 
-main : Program () Model Msg
+main : Program Flags Model Msg
 main =
     Browser.element
         { init = init

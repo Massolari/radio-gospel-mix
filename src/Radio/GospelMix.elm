@@ -1,4 +1,4 @@
-module Radio.GospelMix exposing (getSongPlaying, name, urlStream)
+module Radio.GospelMix exposing (getSongPlaying, name, urlQueryName, urlStream)
 
 import Http
 import Json.Decode as D
@@ -9,6 +9,11 @@ import SongName
 name : String
 name =
     "Gospel Mix"
+
+
+urlQueryName : String
+urlQueryName =
+    "gospel+mix"
 
 
 urlStream : String

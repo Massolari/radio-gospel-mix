@@ -1,7 +1,13 @@
 import { Elm } from "./Main.elm";
 
+const radio = new URL(window.location.href).searchParams.get("radio");
+
+console.log({ radio });
 const app = Elm.Main.init({
   node: document.getElementById("app"),
+  flags: {
+    radio,
+  },
 });
 
 app.ports.copyToClipboard.subscribe((song: string) => {
@@ -24,4 +30,10 @@ app.ports.playPause.subscribe(() => {
   }
 
   audio.pause();
+});
+
+app.ports.changeUrlQuery.subscribe((query: string) => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("radio", query);
+  history.replaceState({}, "", url.toString());
 });

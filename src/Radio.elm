@@ -1,5 +1,6 @@
-module Radio exposing (Radio, Station(..), addToPlaylist, apiGetSongPlaying, changeRadio, current, init, name, playlist, station, stationName, urlStream)
+module Radio exposing (Radio, Station(..), addToPlaylist, apiGetSongPlaying, changeRadio, current, init, name, playlist, station, stationName, urlQueryName, urlStream)
 
+import Dict
 import Http
 import Radio.ChristianRock as ChristianRock
 import Radio.GospelMix as GospelMix
@@ -24,9 +25,15 @@ type alias State =
     }
 
 
-init : Radio
-init =
-    Radio GospelMix initState
+init : Maybe String -> Radio
+init nameUrlQuery =
+    let
+        station_ =
+            nameUrlQuery
+                |> Maybe.andThen queryNameToStation
+                |> Maybe.withDefault GospelMix
+    in
+    Radio station_ initState
 
 
 initState : State
@@ -40,20 +47,30 @@ initState =
 
 
 name : Radio -> String
-name radio =
-    case radio of
-        Radio station_ _ ->
-            stationName station_
+name (Radio station_ _) =
+    stationName station_
+
+
+urlQueryName : Radio -> String
+urlQueryName (Radio station_ _) =
+    case station_ of
+        GospelMix ->
+            GospelMix.urlQueryName
+
+        ChristianRock ->
+            ChristianRock.urlQueryName
+
+
+queryNameToStation : String -> Maybe Station
+queryNameToStation queryName =
+    Dict.fromList
+        [ ( GospelMix.urlQueryName, GospelMix ), ( ChristianRock.urlQueryName, ChristianRock ) ]
+        |> Dict.get queryName
 
 
 playlist : Radio -> Playlist
-playlist radio =
-    case radio of
-        Radio GospelMix state ->
-            state.playlist
-
-        Radio ChristianRock state ->
-            state.playlist
+playlist (Radio _ state) =
+    state.playlist
 
 
 stationName : Station -> String
@@ -67,10 +84,8 @@ stationName station_ =
 
 
 current : Radio -> Station -> Bool
-current model radio =
-    case model of
-        Radio station_ _ ->
-            station_ == radio
+current (Radio station_ _) radio =
+    station_ == radio
 
 
 station : Radio -> Station
@@ -81,12 +96,12 @@ station radio =
 
 
 urlStream : Radio -> String
-urlStream model =
-    case model of
-        Radio GospelMix _ ->
+urlStream (Radio station_ _) =
+    case station_ of
+        GospelMix ->
             GospelMix.urlStream
 
-        Radio ChristianRock _ ->
+        ChristianRock ->
             ChristianRock.urlStream
 
 
@@ -101,12 +116,12 @@ changeRadio station_ =
 
 
 addToPlaylist : Radio -> Song -> Radio
-addToPlaylist radio song =
-    case radio of
-        Radio GospelMix state ->
+addToPlaylist (Radio station_ state) song =
+    case station_ of
+        GospelMix ->
             Radio GospelMix { state | playlist = addToPlaylistHelper state.playlist song }
 
-        Radio ChristianRock state ->
+        ChristianRock ->
             Radio ChristianRock { state | playlist = addToPlaylistHelper state.playlist song }
 
 
