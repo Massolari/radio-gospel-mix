@@ -146,9 +146,13 @@ addToPlaylistHelper playlist_ song =
 
 apiGetSongPlaying : { radio : Radio, onMsg : Result Http.Error Song -> msg } -> Cmd msg
 apiGetSongPlaying config =
-    case config.radio of
-        Radio GospelMix data ->
+    let
+        (Radio station_ _) =
+            config.radio
+    in
+    case station_ of
+        GospelMix ->
             GospelMix.getSongPlaying { onMsg = config.onMsg }
 
-        Radio ChristianRock data ->
+        ChristianRock ->
             ChristianRock.getSongPlaying { onMsg = config.onMsg }
