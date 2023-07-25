@@ -22,19 +22,18 @@ urlStream =
 
 
 getSongPlaying :
-    { playlist : Playlist
-    , onMsg : Result Http.Error (Maybe Song) -> msg
+    { onMsg : Result Http.Error Song -> msg
     }
     -> Cmd msg
 getSongPlaying config =
     Http.get
         { url = "https://d36nr0u3xmc4mm.cloudfront.net/index.php/api/streaming/status/8192/2e1cbe43529055ddda74868d2db9ae98/SV4BR"
-        , expect = Http.expectJson config.onMsg (decodeSong config.playlist)
+        , expect = Http.expectJson config.onMsg decodeSong
         }
 
 
-decodeSong : Playlist -> D.Decoder (Maybe Song)
-decodeSong playlist =
+decodeSong : D.Decoder Song
+decodeSong =
     D.field "currentTrack" D.string
         |> D.map (String.replace "(VHT)" "" >> String.trim)
         |> D.map SongName.fromString
@@ -63,12 +62,4 @@ decodeSong playlist =
                 { name = songName
                 , isAd = isAd
                 }
-            )
-        |> D.map
-            (\song ->
-                if Song.isCurrent playlist song then
-                    Nothing
-
-                else
-                    Just song
             )

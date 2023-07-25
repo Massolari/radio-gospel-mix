@@ -22,19 +22,18 @@ urlStream =
 
 
 getSongPlaying :
-    { playlist : Playlist
-    , onMsg : Result Http.Error (Maybe Song) -> msg
+    { onMsg : Result Http.Error Song -> msg
     }
     -> Cmd msg
 getSongPlaying config =
     Http.get
         { url = "https://radio-api.onrender.com/christianrock"
-        , expect = Http.expectJson config.onMsg (decodeSong config.playlist)
+        , expect = Http.expectJson config.onMsg decodeSong
         }
 
 
-decodeSong : Playlist -> D.Decoder (Maybe Song)
-decodeSong playlist =
+decodeSong : D.Decoder Song
+decodeSong =
     D.map2 (\title artist -> SongName.newFormatted { artist = artist, title = title })
         (D.field "title" D.string)
         (D.field "artist" D.string)
@@ -47,12 +46,4 @@ decodeSong playlist =
                 { name = songName
                 , isAd = String.contains "EvangelismRockMinutes" songNameString
                 }
-            )
-        |> D.map
-            (\song ->
-                if Song.isCurrent playlist song then
-                    Nothing
-
-                else
-                    Just song
             )

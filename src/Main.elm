@@ -81,7 +81,7 @@ init flags =
 type Msg
     = GetSongPlaying Time.Posix
     | GotPlayerStatus PlayerStatus
-    | GotSong (Result Http.Error (Maybe Song))
+    | GotSong (Result Http.Error Song)
     | PlayPause
     | Copy Song
     | Copied String
@@ -98,12 +98,12 @@ update msg model =
     case msg of
         GotSong response ->
             case response of
-                Ok (Just song) ->
+                Ok song ->
                     ( { model | radio = Radio.addToPlaylist model.radio song }
                     , Cmd.none
                     )
 
-                _ ->
+                Err _ ->
                     ( model, Cmd.none )
 
         GetSongPlaying _ ->

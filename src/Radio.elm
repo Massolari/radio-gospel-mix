@@ -117,12 +117,20 @@ changeRadio station_ =
 
 addToPlaylist : Radio -> Song -> Radio
 addToPlaylist (Radio station_ state) song =
+    let
+        newState =
+            if Song.isCurrent state.playlist song then
+                state
+
+            else
+                { state | playlist = addToPlaylistHelper state.playlist song }
+    in
     case station_ of
         GospelMix ->
-            Radio GospelMix { state | playlist = addToPlaylistHelper state.playlist song }
+            Radio GospelMix newState
 
         ChristianRock ->
-            Radio ChristianRock { state | playlist = addToPlaylistHelper state.playlist song }
+            Radio ChristianRock newState
 
 
 addToPlaylistHelper : Playlist -> Song -> List Song
@@ -136,11 +144,11 @@ addToPlaylistHelper playlist_ song =
 -- Http
 
 
-apiGetSongPlaying : { radio : Radio, onMsg : Result Http.Error (Maybe Song) -> msg } -> Cmd msg
+apiGetSongPlaying : { radio : Radio, onMsg : Result Http.Error Song -> msg } -> Cmd msg
 apiGetSongPlaying config =
     case config.radio of
         Radio GospelMix data ->
-            GospelMix.getSongPlaying { playlist = data.playlist, onMsg = config.onMsg }
+            GospelMix.getSongPlaying { onMsg = config.onMsg }
 
         Radio ChristianRock data ->
-            ChristianRock.getSongPlaying { playlist = data.playlist, onMsg = config.onMsg }
+            ChristianRock.getSongPlaying { onMsg = config.onMsg }

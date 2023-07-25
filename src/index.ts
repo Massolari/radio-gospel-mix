@@ -2,7 +2,6 @@ import { Elm } from "./Main.elm";
 
 const radio = new URL(window.location.href).searchParams.get("radio");
 
-console.log({ radio });
 const app = Elm.Main.init({
   node: document.getElementById("app"),
   flags: {
