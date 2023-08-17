@@ -4,6 +4,7 @@ import Dict
 import Http
 import Radio.ChristianRock as ChristianRock
 import Radio.GospelMix as GospelMix
+import RemoteData exposing (WebData)
 import Song exposing (Playlist, Song)
 
 
@@ -21,24 +22,27 @@ type Station
 
 
 type alias State =
-    { playlist : Playlist
+    { playlist : WebData Playlist
     }
 
 
-init : Maybe String -> Radio
-init nameUrlQuery =
+init : { nameUrlQuery : Maybe String, onGetSongMsg : Result Http.Error Song -> msg } -> ( Radio, Cmd msg )
+init { nameUrlQuery, onGetSongMsg } =
     let
         station_ =
             nameUrlQuery
                 |> Maybe.andThen queryNameToStation
                 |> Maybe.withDefault GospelMix
+
+        radio =
+            Radio station_ initState
     in
-    Radio station_ initState
+    ( radio, apiGetSongPlaying { radio = radio, onMsg = onGetSongMsg } )
 
 
 initState : State
 initState =
-    { playlist = []
+    { playlist = RemoteData.Loading
     }
 
 
@@ -68,7 +72,7 @@ queryNameToStation queryName =
         |> Dict.get queryName
 
 
-playlist : Radio -> Playlist
+playlist : Radio -> WebData Playlist
 playlist (Radio _ state) =
     state.playlist
 
@@ -105,25 +109,32 @@ urlStream (Radio station_ _) =
             ChristianRock.urlStream
 
 
-changeRadio : Station -> Radio
-changeRadio station_ =
-    case station_ of
-        GospelMix ->
-            Radio GospelMix initState
+changeRadio : { station : Station, onGetSongMsg : Result Http.Error Song -> msg } -> (Radio, Cmd msg)
+changeRadio options =
+    let
+        radio =
+            case options.station of
+                GospelMix ->
+                    Radio GospelMix initState
 
-        ChristianRock ->
-            Radio ChristianRock initState
+                ChristianRock ->
+                    Radio ChristianRock initState
+    in
+    ( radio, apiGetSongPlaying { radio = radio, onMsg = options.onGetSongMsg } )
 
 
 addToPlaylist : Radio -> Song -> Radio
 addToPlaylist (Radio station_ state) song =
     let
+        thisPlaylist =
+            RemoteData.withDefault [] state.playlist
+
         newState =
-            if Song.isCurrent state.playlist song then
+            if Song.isCurrent thisPlaylist song then
                 state
 
             else
-                { state | playlist = addToPlaylistHelper state.playlist song }
+                { state | playlist = RemoteData.Success <| addToPlaylistHelper thisPlaylist song }
     in
     case station_ of
         GospelMix ->

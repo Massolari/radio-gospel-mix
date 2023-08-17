@@ -10,7 +10,8 @@ import Icon
 import Json.Decode as D
 import Process
 import Radio exposing (Radio, Station)
-import Song exposing (Song)
+import RemoteData
+import Song exposing (Playlist, Song)
 import SongName
 import Task
 import Time
@@ -60,15 +61,15 @@ init flags =
                 |> D.decodeValue (D.field "radio" <| D.maybe D.string)
                 |> Result.withDefault Nothing
 
-        radio =
-            Radio.init radioQuery
+        ( radio, radioCmd ) =
+            Radio.init { nameUrlQuery = radioQuery, onGetSongMsg = GotSong }
     in
     ( { radio = radio
       , copiedSong = Nothing
       , player = Paused
       }
     , Cmd.batch
-        [ apiGetSongPlaying radio
+        [ radioCmd
         , changeUrlQuery <| Radio.urlQueryName radio
         ]
     )
@@ -79,7 +80,7 @@ init flags =
 
 
 type Msg
-    = GetSongPlaying Time.Posix
+    = GetSongPlaying
     | GotPlayerStatus PlayerStatus
     | GotSong (Result Http.Error Song)
     | PlayPause
@@ -106,7 +107,7 @@ update msg model =
                 Err _ ->
                     ( model, Cmd.none )
 
-        GetSongPlaying _ ->
+        GetSongPlaying ->
             ( model
             , apiGetSongPlaying model.radio
             )
@@ -134,12 +135,12 @@ update msg model =
 
         ChangeRadio station ->
             let
-                newRadio =
-                    Radio.changeRadio station
+                (newRadio, radioCmd) =
+                    Radio.changeRadio { station = station, onGetSongMsg = GotSong }
             in
             ( { model | radio = newRadio }
             , Cmd.batch
-                [ apiGetSongPlaying newRadio
+                [ radioCmd
                 , changeUrlQuery <| Radio.urlQueryName newRadio
                 ]
             )
@@ -248,14 +249,51 @@ viewPlaylist model =
     let
         playlist =
             Radio.playlist model.radio
+
+        viewNotSuccess message actions =
+            ul []
+                [ viewSongCard
+                    { song = { name = SongName.fromString message, isAd = False }
+                    , isHighlighted = True
+                    , playerButton = Just model.player
+                    , viewActions = actions
+                    }
+                ]
+
+        viewRetryButton =
+            styledButton
+                [ onClick <| GetSongPlaying
+                , class "rounded-full hover:bg-gray-100"
+                , title "Tentar novamente"
+                ]
+                [ Icon.rotateRight ]
     in
-    Keyed.node "ul"
+    div
         [ class "mx-auto my-0"
-        , class "flex flex-col gap-2 items-center"
         , class "w-fit h-full"
         ]
+        [ case playlist of
+            RemoteData.NotAsked ->
+                viewNotSuccess "Nome da música não carregado" (Just viewRetryButton)
+
+            RemoteData.Loading ->
+                div [ class "animate-spin text-2xl [&>svg]:fill-white" ] [ Icon.spinner ]
+
+            RemoteData.Failure _ ->
+                viewNotSuccess "Erro ao carregar música" (Just viewRetryButton)
+
+            RemoteData.Success playlist_ ->
+                viewPlaylistData playlist_ model
+        ]
+
+
+viewPlaylistData : Playlist -> Model -> Html Msg
+viewPlaylistData playlist model =
+    Keyed.node "ul"
+        [ class "flex flex-col gap-2 items-center"
+        ]
         (List.map
-            (viewKeyedSong model)
+            (viewKeyedSong playlist model)
             playlist
         )
 
@@ -269,17 +307,50 @@ styledButton =
             ]
 
 
-viewKeyedSong : Model -> Song -> ( String, Html Msg )
-viewKeyedSong model song =
+viewKeyedSong : Playlist -> Model -> Song -> ( String, Html Msg )
+viewKeyedSong playlist model song =
     let
-        playlist =
-            Radio.playlist model.radio
-
         isCurrent =
             Song.isCurrent playlist song
-
-        currentSongClasses =
+    in
+    ( SongName.toString song.name
+    , viewSongCard
+        { song = song
+        , isHighlighted = isCurrent
+        , playerButton =
             if isCurrent then
+                Just model.player
+
+            else
+                Nothing
+        , viewActions =
+            Just <|
+                div
+                    [ class "flex gap-2"
+                    , if song.isAd then
+                        class "invisible"
+
+                      else
+                        class ""
+                    ]
+                    [ viewYoutubeButton song isCurrent
+                    , viewCopyButton model.copiedSong song isCurrent
+                    ]
+        }
+    )
+
+
+viewSongCard :
+    { song : Song
+    , isHighlighted : Bool
+    , playerButton : Maybe PlayerStatus
+    , viewActions : Maybe (Html Msg)
+    }
+    -> Html Msg
+viewSongCard ({ song, isHighlighted } as options) =
+    let
+        highlightClasses =
+            if isHighlighted then
                 [ class "text-black bg-white px-5 opacity-90"
                 , class "animate-[showSong_1s] fill-mode-forwards "
                 , class "md:w-[40vw] w-[70vw]"
@@ -290,26 +361,27 @@ viewKeyedSong model song =
                 , class "md:w-[30vw] w-[60vw]"
                 ]
     in
-    ( SongName.toString song.name
-    , li
+    li
         ([ class "list-none"
          , class "transition-all duration-1000 origin-top transition-opacity-150 hover:opacity-100"
          , class "flex justify-between items-center"
          ]
-            ++ currentSongClasses
+            ++ highlightClasses
         )
-        [ if Song.isCurrent playlist song then
-            viewPlayerButton model.player
+        [ case options.playerButton of
+            Just player ->
+                viewPlayerButton player
 
-          else
-            text ""
-        , viewSongName song isCurrent
-        , div [ class "flex gap-2" ]
-            [ viewYoutubeButton song isCurrent
-            , viewCopyButton model.copiedSong song isCurrent
-            ]
+            Nothing ->
+                text ""
+        , viewSongName song isHighlighted
+        , case options.viewActions of
+            Just viewActions ->
+                viewActions
+
+            Nothing ->
+                text ""
         ]
-    )
 
 
 viewPlayerButton : PlayerStatus -> Html Msg
@@ -433,7 +505,7 @@ isCopiedSong copiedSong song =
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
-        [ Time.every (1000 * 30) GetSongPlaying
+        [ Time.every (1000 * 30) (\_ -> GetSongPlaying)
         , copiedToClipboard Copied
         ]
 
