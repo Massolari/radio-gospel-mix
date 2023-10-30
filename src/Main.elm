@@ -135,7 +135,7 @@ update msg model =
 
         ChangeRadio station ->
             let
-                (newRadio, radioCmd) =
+                ( newRadio, radioCmd ) =
                     Radio.changeRadio { station = station, onGetSongMsg = GotSong }
             in
             ( { model | radio = newRadio }
@@ -220,8 +220,7 @@ viewPlayer radio =
         [ audio
             [ controls True
             , class "hidden"
-            , autoplay True
-            , preload "auto"
+            , preload "none"
             , src <| Radio.urlStream radio
             , on "loadeddata" (D.map GotPlayerStatus decodePlayerStatus)
             , on "play" (D.succeed <| GotPlayerStatus Playing)
