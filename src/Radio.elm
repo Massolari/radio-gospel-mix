@@ -12,8 +12,8 @@ import Song exposing (Playlist, Song)
 -- Model
 
 
-type Radio
-    = Radio Station State
+type Radio msg
+    = Radio Station (State msg)
 
 
 type Station
@@ -21,12 +21,13 @@ type Station
     | ChristianRock
 
 
-type alias State =
+type alias State msg =
     { playlist : WebData Playlist
+    , onGetSongMsg : Result Http.Error Song -> msg
     }
 
 
-init : { nameUrlQuery : Maybe String, onGetSongMsg : Result Http.Error Song -> msg } -> ( Radio, Cmd msg )
+init : { nameUrlQuery : Maybe String, onGetSongMsg : Result Http.Error Song -> msg } -> ( Radio msg, Cmd msg )
 init { nameUrlQuery, onGetSongMsg } =
     let
         station_ =
@@ -35,14 +36,15 @@ init { nameUrlQuery, onGetSongMsg } =
                 |> Maybe.withDefault GospelMix
 
         radio =
-            Radio station_ initState
+            Radio station_ (initState onGetSongMsg)
     in
-    ( radio, apiGetSongPlaying { radio = radio, onMsg = onGetSongMsg } )
+    ( radio, apiGetSongPlaying radio )
 
 
-initState : State
-initState =
+initState : (Result Http.Error Song -> msg) -> State msg
+initState onGetSongMsg =
     { playlist = RemoteData.Loading
+    , onGetSongMsg = onGetSongMsg
     }
 
 
@@ -50,12 +52,12 @@ initState =
 -- Helper
 
 
-name : Radio -> String
+name : Radio msg -> String
 name (Radio station_ _) =
     stationName station_
 
 
-urlQueryName : Radio -> String
+urlQueryName : Radio msg -> String
 urlQueryName (Radio station_ _) =
     case station_ of
         GospelMix ->
@@ -72,7 +74,7 @@ queryNameToStation queryName =
         |> Dict.get queryName
 
 
-playlist : Radio -> WebData Playlist
+playlist : Radio msg -> WebData Playlist
 playlist (Radio _ state) =
     state.playlist
 
@@ -87,19 +89,19 @@ stationName station_ =
             ChristianRock.name
 
 
-current : Radio -> Station -> Bool
+current : Radio msg -> Station -> Bool
 current (Radio station_ _) radio =
     station_ == radio
 
 
-station : Radio -> Station
+station : Radio msg -> Station
 station radio =
     case radio of
         Radio station_ _ ->
             station_
 
 
-urlStream : Radio -> String
+urlStream : Radio msg -> String
 urlStream (Radio station_ _) =
     case station_ of
         GospelMix ->
@@ -109,39 +111,40 @@ urlStream (Radio station_ _) =
             ChristianRock.urlStream
 
 
-changeRadio : { station : Station, onGetSongMsg : Result Http.Error Song -> msg } -> (Radio, Cmd msg)
-changeRadio options =
+changeStation : { station : Station, radio : Radio msg } -> ( Radio msg, Cmd msg )
+changeStation options =
     let
-        radio =
-            case options.station of
-                GospelMix ->
-                    Radio GospelMix initState
+        (Radio _ state) =
+            options.radio
 
-                ChristianRock ->
-                    Radio ChristianRock initState
+        newRadio =
+            Radio options.station (initState state.onGetSongMsg)
     in
-    ( radio, apiGetSongPlaying { radio = radio, onMsg = options.onGetSongMsg } )
+    ( newRadio, apiGetSongPlaying newRadio )
 
 
-addToPlaylist : Radio -> Song -> Radio
-addToPlaylist (Radio station_ state) song =
+
+
+addToPlaylist : Radio msg -> Result Http.Error Song -> Radio msg
+addToPlaylist (Radio station_ state) resultSong =
     let
-        thisPlaylist =
-            RemoteData.withDefault [] state.playlist
-
         newState =
-            if Song.isCurrent thisPlaylist song then
-                state
+            case resultSong of
+                Ok song ->
+                    let
+                        thisPlaylist =
+                            RemoteData.withDefault [] state.playlist
+                    in
+                    if Song.isCurrent thisPlaylist song then
+                        state
 
-            else
-                { state | playlist = RemoteData.Success <| addToPlaylistHelper thisPlaylist song }
+                    else
+                        { state | playlist = RemoteData.Success <| addToPlaylistHelper thisPlaylist song }
+
+                Err error ->
+                    { state | playlist = RemoteData.Failure error }
     in
-    case station_ of
-        GospelMix ->
-            Radio GospelMix newState
-
-        ChristianRock ->
-            Radio ChristianRock newState
+    Radio station_ newState
 
 
 addToPlaylistHelper : Playlist -> Song -> List Song
@@ -155,15 +158,11 @@ addToPlaylistHelper playlist_ song =
 -- Http
 
 
-apiGetSongPlaying : { radio : Radio, onMsg : Result Http.Error Song -> msg } -> Cmd msg
-apiGetSongPlaying config =
-    let
-        (Radio station_ _) =
-            config.radio
-    in
+apiGetSongPlaying : Radio msg -> Cmd msg
+apiGetSongPlaying (Radio station_ state) =
     case station_ of
         GospelMix ->
-            GospelMix.getSongPlaying { onMsg = config.onMsg }
+            GospelMix.getSongPlaying { onMsg = state.onGetSongMsg }
 
         ChristianRock ->
-            ChristianRock.getSongPlaying { onMsg = config.onMsg }
+            ChristianRock.getSongPlaying { onMsg = state.onGetSongMsg }

@@ -47,7 +47,7 @@ type PlayerStatus
 
 
 type alias Model =
-    { radio : Radio
+    { radio : Radio Msg
     , copiedSong : Maybe String
     , player : PlayerStatus
     }
@@ -97,19 +97,14 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        GotSong response ->
-            case response of
-                Ok song ->
-                    ( { model | radio = Radio.addToPlaylist model.radio song }
-                    , Cmd.none
-                    )
-
-                Err _ ->
-                    ( model, Cmd.none )
+        GotSong song ->
+            ( { model | radio = Radio.addToPlaylist model.radio song }
+            , Cmd.none
+            )
 
         GetSongPlaying ->
             ( model
-            , apiGetSongPlaying model.radio
+            , Radio.apiGetSongPlaying model.radio
             )
 
         GotPlayerStatus status ->
@@ -136,7 +131,7 @@ update msg model =
         ChangeRadio station ->
             let
                 ( newRadio, radioCmd ) =
-                    Radio.changeRadio { station = station, onGetSongMsg = GotSong }
+                    Radio.changeStation { station = station, radio = model.radio }
             in
             ( { model | radio = newRadio, player = Paused }
             , Cmd.batch
@@ -167,7 +162,7 @@ viewBackground =
         []
 
 
-viewNavigation : Radio -> Html Msg
+viewNavigation : Radio Msg -> Html Msg
 viewNavigation radio =
     let
         disabledIconClass =
@@ -214,7 +209,7 @@ viewNavigation radio =
         ]
 
 
-viewPlayer : Radio -> Html Msg
+viewPlayer : Radio Msg -> Html Msg
 viewPlayer radio =
     div []
         [ audio
@@ -507,18 +502,6 @@ subscriptions _ =
         [ Time.every (1000 * 30) (\_ -> GetSongPlaying)
         , copiedToClipboard Copied
         ]
-
-
-
--- Http
-
-
-apiGetSongPlaying : Radio -> Cmd Msg
-apiGetSongPlaying radio =
-    Radio.apiGetSongPlaying
-        { radio = radio
-        , onMsg = GotSong
-        }
 
 
 
