@@ -1,4 +1,4 @@
-module Radio exposing (Radio, Station(..), addToPlaylist, apiGetSongPlaying, changeRadio, current, init, name, playlist, station, stationName, urlQueryName, urlStream)
+module Radio exposing (Radio, Station(..), addToPlaylist, apiGetSongPlaying, changeStation, current, init, name, playlist, retryLoadingSong, station, stationName, urlQueryName, urlStream)
 
 import Dict
 import Http
@@ -123,6 +123,11 @@ changeStation options =
     ( newRadio, apiGetSongPlaying newRadio )
 
 
+retryLoadingSong : Radio msg -> ( Radio msg, Cmd msg )
+retryLoadingSong ((Radio station_ state) as radio) =
+    ( Radio station_ (initState state.onGetSongMsg)
+    , apiGetSongPlaying radio
+    )
 
 
 addToPlaylist : Radio msg -> Result Http.Error Song -> Radio msg

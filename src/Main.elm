@@ -82,6 +82,7 @@ init flags =
 type Msg
     = GetSongPlaying
     | GotPlayerStatus PlayerStatus
+    | RetryLoadingSong
     | GotSong (Result Http.Error Song)
     | PlayPause
     | Copy Song
@@ -110,6 +111,15 @@ update msg model =
         GotPlayerStatus status ->
             ( { model | player = status }
             , Cmd.none
+            )
+
+        RetryLoadingSong ->
+            let
+                ( newRadio, cmd ) =
+                    Radio.retryLoadingSong model.radio
+            in
+            ( { model | radio = newRadio }
+            , cmd
             )
 
         PlayPause ->
@@ -244,19 +254,19 @@ viewPlaylist model =
         playlist =
             Radio.playlist model.radio
 
-        viewNotSuccess message actions =
+        viewNotSuccess message =
             ul []
                 [ viewSongCard
                     { song = { name = SongName.fromString message, isAd = False }
                     , isHighlighted = True
                     , playerButton = Just model.player
-                    , viewActions = actions
+                    , viewActions = Just viewRetryButton
                     }
                 ]
 
         viewRetryButton =
             styledButton
-                [ onClick <| GetSongPlaying
+                [ onClick RetryLoadingSong
                 , class "rounded-full hover:bg-gray-100"
                 , title "Tentar novamente"
                 ]
@@ -268,13 +278,13 @@ viewPlaylist model =
         ]
         [ case playlist of
             RemoteData.NotAsked ->
-                viewNotSuccess "Nome da música não carregado" (Just viewRetryButton)
+                viewNotSuccess "Nome da música não carregado"
 
             RemoteData.Loading ->
                 div [ class "animate-spin text-2xl [&>svg]:fill-white" ] [ Icon.spinner ]
 
             RemoteData.Failure _ ->
-                viewNotSuccess "Erro ao carregar música" (Just viewRetryButton)
+                viewNotSuccess "Erro ao carregar música"
 
             RemoteData.Success playlist_ ->
                 viewPlaylistData playlist_ model
