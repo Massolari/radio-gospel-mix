@@ -138,7 +138,7 @@ update msg model =
                 ( newRadio, radioCmd ) =
                     Radio.changeRadio { station = station, onGetSongMsg = GotSong }
             in
-            ( { model | radio = newRadio }
+            ( { model | radio = newRadio, player = Paused }
             , Cmd.batch
                 [ radioCmd
                 , changeUrlQuery <| Radio.urlQueryName newRadio
