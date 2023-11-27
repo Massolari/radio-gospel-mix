@@ -281,7 +281,16 @@ viewPlaylist model =
                 viewNotSuccess "Nome da música não carregado"
 
             RemoteData.Loading ->
-                div [ class "animate-spin text-2xl [&>svg]:fill-white" ] [ Icon.spinner ]
+                ul []
+                    [ viewSongCard
+                        { song = { name = SongName.fromString "Carregando", isAd = False }
+                        , isHighlighted = True
+                        , playerButton = Just model.player
+                        , viewActions =
+                            Just <|
+                                div [ class "animate-spin text-2xl [&>svg]:fill-black" ] [ Icon.spinner ]
+                        }
+                    ]
 
             RemoteData.Failure _ ->
                 viewNotSuccess "Erro ao carregar música"
