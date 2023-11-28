@@ -36,3 +36,7 @@ app.ports.changeUrlQuery.subscribe((query: string) => {
   url.searchParams.set("radio", query);
   history.replaceState({}, "", url.toString());
 });
+
+app.ports.setTitle.subscribe((title: string) => {
+  document.title = title;
+})

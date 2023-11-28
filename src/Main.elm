@@ -33,6 +33,9 @@ port playPause : () -> Cmd msg
 port copiedToClipboard : (String -> msg) -> Sub msg
 
 
+port setTitle : String -> Cmd msg
+
+
 
 -- Model
 
@@ -100,7 +103,12 @@ update msg model =
     case msg of
         GotSong song ->
             ( { model | radio = Radio.addToPlaylist model.radio song }
-            , Cmd.none
+            , case song of
+                Ok actualSong ->
+                    setTitle <| SongName.toString actualSong.name ++ " | " ++ Radio.stationName (Radio.station model.radio)
+
+                Err _ ->
+                    Cmd.none
             )
 
         GetSongPlaying ->

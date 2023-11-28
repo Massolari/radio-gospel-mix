@@ -64,7 +64,7 @@ toString : SongName -> String
 toString songName =
     case songName of
         Formatted { artist, title } ->
-            artist ++ " - " ++ title
+            title ++ " - " ++ artist
 
         Unformatted name ->
             name
