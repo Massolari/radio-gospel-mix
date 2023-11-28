@@ -40,3 +40,14 @@ app.ports.changeUrlQuery.subscribe((query: string) => {
 app.ports.setTitle.subscribe((title: string) => {
   document.title = title;
 })
+
+app.ports.setVolume.subscribe((volume: number) => {
+  const audio = document.querySelector<HTMLAudioElement>("audio");
+
+  if (!audio) {
+    console.error("No audio element found");
+    return;
+  }
+
+  audio.volume = volume;
+})

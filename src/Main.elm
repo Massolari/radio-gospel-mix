@@ -3,7 +3,7 @@ port module Main exposing (Model, Msg, init, main, update, view)
 import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (on, onClick)
+import Html.Events exposing (on, onClick, onInput)
 import Html.Keyed as Keyed
 import Http
 import Icon
@@ -36,6 +36,9 @@ port copiedToClipboard : (String -> msg) -> Sub msg
 port setTitle : String -> Cmd msg
 
 
+port setVolume : Float -> Cmd msg
+
+
 
 -- Model
 
@@ -52,7 +55,13 @@ type PlayerStatus
 type alias Model =
     { radio : Radio Msg
     , copiedSong : Maybe String
-    , player : PlayerStatus
+    , player : Player
+    }
+
+
+type alias Player =
+    { status : PlayerStatus
+    , volume : Float
     }
 
 
@@ -69,13 +78,20 @@ init flags =
     in
     ( { radio = radio
       , copiedSong = Nothing
-      , player = Paused
+      , player = initPlayer
       }
     , Cmd.batch
         [ radioCmd
         , changeUrlQuery <| Radio.urlQueryName radio
         ]
     )
+
+
+initPlayer : Player
+initPlayer =
+    { status = Paused
+    , volume = 1
+    }
 
 
 
@@ -87,6 +103,8 @@ type Msg
     | GotPlayerStatus PlayerStatus
     | RetryLoadingSong
     | GotSong (Result Http.Error Song)
+    | VolumeChanged String
+    | ToggleMuted
     | PlayPause
     | Copy Song
     | Copied String
@@ -99,8 +117,27 @@ type Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update msg ({ player } as model) =
     case msg of
+        GetSongPlaying ->
+            ( model
+            , Radio.apiGetSongPlaying model.radio
+            )
+
+        GotPlayerStatus status ->
+            ( { model | player = { player | status = status } }
+            , setVolume player.volume
+            )
+
+        RetryLoadingSong ->
+            let
+                ( newRadio, cmd ) =
+                    Radio.retryLoadingSong model.radio
+            in
+            ( { model | radio = newRadio }
+            , cmd
+            )
+
         GotSong song ->
             ( { model | radio = Radio.addToPlaylist model.radio song }
             , case song of
@@ -111,23 +148,28 @@ update msg model =
                     Cmd.none
             )
 
-        GetSongPlaying ->
-            ( model
-            , Radio.apiGetSongPlaying model.radio
-            )
-
-        GotPlayerStatus status ->
-            ( { model | player = status }
-            , Cmd.none
-            )
-
-        RetryLoadingSong ->
+        VolumeChanged volumeStr ->
             let
-                ( newRadio, cmd ) =
-                    Radio.retryLoadingSong model.radio
+                volume =
+                    volumeStr
+                        |> String.toFloat
+                        |> Maybe.withDefault model.player.volume
             in
-            ( { model | radio = newRadio }
-            , cmd
+            ( { model | player = { player | volume = volume } }
+            , setVolume volume
+            )
+
+        ToggleMuted ->
+            let
+                volume =
+                    if player.volume == 0 then
+                        1
+
+                    else
+                        0
+            in
+            ( { model | player = { player | volume = volume } }
+            , setVolume volume
             )
 
         PlayPause ->
@@ -151,7 +193,7 @@ update msg model =
                 ( newRadio, radioCmd ) =
                     Radio.changeStation { station = station, radio = model.radio }
             in
-            ( { model | radio = newRadio, player = Paused }
+            ( { model | radio = newRadio, player = { player | status = Paused } }
             , Cmd.batch
                 [ radioCmd
                 , changeUrlQuery <| Radio.urlQueryName newRadio
@@ -364,7 +406,7 @@ viewKeyedSong playlist model song =
 viewSongCard :
     { song : Song
     , isHighlighted : Bool
-    , playerButton : Maybe PlayerStatus
+    , playerButton : Maybe Player
     , viewActions : Maybe (Html Msg)
     }
     -> Html Msg
@@ -383,22 +425,29 @@ viewSongCard ({ song, isHighlighted } as options) =
                 ]
     in
     li
-        ([ class "list-none"
+        ([ class "flex flex-col justify-between"
          , class "transition-all duration-1000 origin-top transition-opacity-150 hover:opacity-100"
-         , class "flex justify-between items-center"
          ]
             ++ highlightClasses
         )
-        [ case options.playerButton of
-            Just player ->
-                viewPlayerButton player
+        [ div [ class "flex justify-between items-center" ]
+            [ case options.playerButton of
+                Just player ->
+                    viewPlayerButton player.status
 
-            Nothing ->
-                text ""
-        , viewSongName song isHighlighted
-        , case options.viewActions of
-            Just viewActions ->
-                viewActions
+                Nothing ->
+                    text ""
+            , viewSongName song isHighlighted
+            , case options.viewActions of
+                Just viewActions ->
+                    viewActions
+
+                Nothing ->
+                    text ""
+            ]
+        , case options.playerButton of
+            Just player ->
+                viewVolumeInput player
 
             Nothing ->
                 text ""
@@ -455,6 +504,44 @@ viewSongName song isCurrent =
             \name ->
                 div [ songNameClasses ] [ text name ]
         }
+
+
+viewVolumeInput : Player -> Html Msg
+viewVolumeInput player =
+    div [ class "flex items-center gap-1" ]
+        [ styledButton
+            [ class "w-9 h-9 relative rounded-full text-md p-2"
+            , class "flex items-center justify-center"
+            , onClick ToggleMuted
+            ]
+            [ div [ class "w-5 h-4 relative" ]
+                [ span
+                    [ class "absolute left-0"
+                    , class
+                        (if player.volume == 0 then
+                            "visible"
+
+                         else
+                            "hidden"
+                        )
+                    ]
+                    [ Icon.volumeX ]
+                , span [ class "absolute left-0" ] [ Icon.volumeOff ]
+                , span [ class "absolute left-0", style "opacity" (String.fromFloat (player.volume * 2)) ] [ Icon.volumeLow ]
+                , span [ class "absolute left-0", style "opacity" (String.fromFloat (player.volume * 2 - 1)) ] [ Icon.volumeHigh ]
+                ]
+            ]
+        , input
+            [ type_ "range"
+            , Html.Attributes.min "0"
+            , Html.Attributes.max "1"
+            , step "any"
+            , class "w-full accent-black h-1"
+            , value <| String.fromFloat player.volume
+            , onInput VolumeChanged
+            ]
+            []
+        ]
 
 
 viewCopyButton : Maybe String -> Song -> Bool -> Html Msg
